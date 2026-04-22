@@ -1,5 +1,5 @@
 #from agent import Agent
-from randomplayer import RandomPlayer
+from python_files.randomplayer import RandomPlayer
 import random
 import sys
 
