@@ -49,13 +49,15 @@ end
 -------------------------------------------------------------------------------------
 
 --- Shared static knowledge base. Holds the global state-probability table
---- for all agents. Only one instance should be initialized via knowledgeBase.new().
-local knowledgeBase   = {}
-knowledgeBase.__index = knowledgeBase
+--- for all agents. Only one instance should be initialized via KnowledgeBase.new().
+local KnowledgeBase   = {}
+KnowledgeBase.__index = KnowledgeBase
 --- @type table<string, table>: maps state strings to arrays of {Idx, Prob} entries
-knowledgeBase.data = {}
+KnowledgeBase.data = {}
 --- @type string: path to the knowledge base file, set during initialization
-knowledgeBase.filePath = nil
+KnowledgeBase.filePath = nil
+---@type boolean: flag to let us know if the kbase has already been initialized
+KnowledgeBase.initalized = false
 
 
 
@@ -67,37 +69,51 @@ knowledgeBase.filePath = nil
 --- If the file does not exist, an empty file will be created at the given path.
 --- Should only be called once before any agents are constructed.
 --- @param filePath string|nil: path to the knowledge base file (default: "./default-kb.txt")
-function knowledgeBase.new(filePath)
+function KnowledgeBase.new(filePath)
     -- set file path, defaults to ./default-kb.txt
-    knowledgeBase.filePath = filePath or "./default-kb.txt"
+    if KnowledgeBase.initalized then
+        assert(KnowledgeBase.filePath ~= filePath, "GIVEN FILE PATHS DO NOT MATCH")
+        return
+    end
+
+    KnowledgeBase.filePath = filePath or "./default-kb.txt"
     -- opens file for read 
-	local file, err = io.open(knowledgeBase.filePath, "r")
+	local file, err = io.open(KnowledgeBase.filePath, "r")
     -- if file does not exist, one will be made
 	if not file then
-		file, err = io.open(knowledgeBase.filePath, "a")
+		file, err = io.open(KnowledgeBase.filePath, "a")
 		assert(file, err)
 		file:close()
-		file, err = io.open(knowledgeBase.filePath, "r")
+		file, err = io.open(KnowledgeBase.filePath, "r")
 		assert(file, err)
 	end
 
     -- splits and places state data into in-memory kb
     for line in file:lines() do
         local state, data = deserialize(line)
-        knowledgeBase.data[state] = data
+        KnowledgeBase.data[state] = data
     end
     file:close()
 end
 
+function KnowledgeBase.DataToSerialForm()
+    local str = ""
+    for state, data in pairs(KnowledgeBase.data) do
+        local line = serialize(state, data)
+        str = str .. line .. "\n"
+    end
+
+    return str
+end
+
 --- Persists the current in-memory knowledge base to the save file.
 --- Overwrites the existing file contents entirely.sts the knowledge base to the save file
-function knowledgeBase.save()
-    local file, err = io.open(knowledgeBase.filePath, "w")
+function KnowledgeBase.save()
+    local file, err = io.open(KnowledgeBase.filePath, "w")
     assert(file, err)
 
-    for state, data in pairs(knowledgeBase.data) do
-        local line = serialize(state, data)
-
+    for state, data in pairs(KnowledgeBase.data) do
+        local line = serialize(state, data) .. "\n"
         file.write(file, line)
     end
 
@@ -106,19 +122,28 @@ end
 
 --- Merges an agent's updated states into the shared knowledge base.
 --- Overwrites any existing entries for states present in agentUpdates.
---- Call knowledgeBase.save() afterward to persist changes to disk.
+--- Call KnowledgeBase.save() afterward to persist changes to disk.
 --- @param agentUpdates table<string, table>: maps state strings to updated {Idx, Prob} arrays
-function knowledgeBase.update(agentUpdates)
+function KnowledgeBase.update(agentUpdates)
     for state, data in pairs(agentUpdates) do
-        knowledgeBase.data[state] = data
+        KnowledgeBase.data[state] = data
     end
 end
 
 --- Adds a new state entry to the in-memory knowledge base.
---- Does not persist to disk; call knowledgeBase.save() to write changes.
+--- Does not persist to disk; call KnowledgeBase.save() to write changes.
 --- should be called immediately after a new state is discovered
 --- @param state string: the state string key
 --- @param datum table: array of {Idx: number, Prob: number} entries
-function knowledgeBase.addNewState(state, datum)
-    knowledgeBase.data[state] = datum
+function KnowledgeBase.addNewState(state, datum)
+    KnowledgeBase.data[state] = datum
 end
+
+--- Tests to see if a given state exists in our knowledge base
+--- @param state string: the state string key
+--- @return boolean
+function KnowledgeBase.stateExists(state)
+    return KnowledgeBase.data[state] ~= nil
+end
+
+return KnowledgeBase

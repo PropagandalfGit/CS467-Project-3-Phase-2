@@ -1,5 +1,6 @@
 #from agent import Agent
-from python_files.randomplayer import RandomPlayer
+from randomplayer import RandomPlayer
+from agent import Agent
 import random
 import sys
 
@@ -128,7 +129,7 @@ gameboard = "--------------XO----OX--------------"
 gameover = False
 
 X = RandomPlayer('X')
-O = RandomPlayer('O')
+O = Agent('O')
 #O = Agent('O') # use this when agent is implemented
 
 
@@ -149,7 +150,7 @@ while( not gameover ):
      play = -1
      while not validMove( gameboard, play, 'O' ):
         play = O.getMove( gameboard )
-        print("Play",play,"for O")
+        #print("Play",play,"for O")
      applyMove( play, 'O' )
      printBoard(gameboard)
      input("Continue?")

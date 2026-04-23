@@ -5,7 +5,6 @@ lua.execute("""
 """)
 
 class Agent:
-    symbol = 'X'
     def __init__( self, xORo ):
         self.symbol = xORo
         self.agent = lua.eval("require('lua_port.agent').new")(xORo, "lua_port/agent-kbase.txt")
