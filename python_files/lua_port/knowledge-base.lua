@@ -57,9 +57,7 @@ KnowledgeBase.data = {}
 --- @type string: path to the knowledge base file, set during initialization
 KnowledgeBase.filePath = nil
 ---@type boolean: flag to let us know if the kbase has already been initialized
-KnowledgeBase.initalized = false
-
-
+KnowledgeBase.initialized = false
 
 -------------------------------------------------------------------------------------
 -- METHODS --------------------------------------------------------------------------
@@ -71,7 +69,7 @@ KnowledgeBase.initalized = false
 --- @param filePath string|nil: path to the knowledge base file (default: "./default-kb.txt")
 function KnowledgeBase.new(filePath)
     -- set file path, defaults to ./default-kb.txt
-    if KnowledgeBase.initalized then
+    if KnowledgeBase.initialized then
         assert(KnowledgeBase.filePath ~= filePath, "GIVEN FILE PATHS DO NOT MATCH")
         return
     end
