@@ -59,6 +59,8 @@ KnowledgeBase.filePath = nil
 ---@type boolean: flag to let us know if the kbase has already been initialized
 KnowledgeBase.initialized = false
 
+local NEW_STATES_FOUND = 0
+
 -------------------------------------------------------------------------------------
 -- METHODS --------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
@@ -116,6 +118,7 @@ function KnowledgeBase.save()
     end
 
     file:close()
+    print(NEW_STATES_FOUND, "new states found")
 end
 
 --- Merges an agent's updated states into the shared knowledge base.
@@ -135,6 +138,7 @@ end
 --- @param datum table: array of {Idx: number, Prob: number} entries
 function KnowledgeBase.addNewState(state, datum)
     KnowledgeBase.data[state] = datum
+    NEW_STATES_FOUND = NEW_STATES_FOUND + 1
 end
 
 --- Tests to see if a given state exists in our knowledge base
