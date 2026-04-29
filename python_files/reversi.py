@@ -118,20 +118,20 @@ numWinX = 0
 numWinO = 0
 numTied = 0
 
-for g in range(1000):
+for g in range(50):
    # Alternate who goes first AND which diagonal the opening pieces are on.
    # Even games: X moves first, normal opening.
    # Odd  games: O moves first, swapped opening — mirrors the game exactly.
-   #x_goes_first = (g % 2 == 0)
-   gameboard = BOARD_NORMAL #if x_goes_first else BOARD_SWAPPED
+   x_goes_first = (g % 2 == 0)
+   gameboard = BOARD_NORMAL if x_goes_first else BOARD_SWAPPED
    gameover  = False
 
-   # if x_goes_first:
-   first_piece,  first_agent  = 'X', X
-   second_piece, second_agent = 'O', O
-   # else:
-   #    first_piece,  first_agent  = 'O', O
-   #    second_piece, second_agent = 'X', X
+   if x_goes_first:
+      first_piece,  first_agent  = 'X', X
+      second_piece, second_agent = 'O', O
+   else:
+       first_piece,  first_agent  = 'O', O
+       second_piece, second_agent = 'X', X
 
    while( not gameover ):
       # First player's turn
@@ -164,6 +164,7 @@ for g in range(1000):
             O.endGame( 0, gameboard )
             numTied += 1
          gameover = True
+   print("GAME FINISHED")
 
 X.stopPlaying()
 O.stopPlaying()
