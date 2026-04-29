@@ -60,6 +60,7 @@ KnowledgeBase.filePath = nil
 KnowledgeBase.inUse = false
 
 local NEW_STATES_FOUND = 0
+local TOTAL_STATES_FOUND = 0
 
 -------------------------------------------------------------------------------------
 -- METHODS --------------------------------------------------------------------------
@@ -123,6 +124,11 @@ function KnowledgeBase.save()
     end
 
     file:close()
+    TOTAL_STATES_FOUND = TOTAL_STATES_FOUND + NEW_STATES_FOUND
+    print(TOTAL_STATES_FOUND, "total states found")
+    print(NEW_STATES_FOUND, "new states found")
+    NEW_STATES_FOUND = 0
+
 end
 
 --- Merges an agent's updated states into the shared knowledge base.
