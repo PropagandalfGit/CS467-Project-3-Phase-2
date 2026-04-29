@@ -1,5 +1,4 @@
 #from agent import Agent
-from _typeshed import Self
 import time
 from agent import Agent
 import sys
@@ -188,9 +187,8 @@ BOARD_SWAPPED = "--------------OX----XO--------------"
 gameboard = "--------------XO----OX--------------"
 gameover = False
 
-# Milestones: each order of magnitude from 100 up to 20 million
 TOTAL_GAMES = 20_000_000
-milestones = set([100, 1_000, 10_000, 100_000, 1_000_000, 5_000_000, 10_000_000, 20_000_000])
+milestones = set([100, 200, 300, 400, 500, 1_000, 5_000, 10_000, 50_000, 100_000, 500_000, 1_000_000, 5_000_000, 10_000_000, 20_000_000])
 
 print()
 print("  ╔══════════════════════════════════════════════╗")
