@@ -3,12 +3,12 @@ local sHelp = require('string-helpers')
 
 local FINAL_PLAYER = 'O'
 
-local LOSS_PUNISH 	= 0.1
+local LOSS_PUNISH 	= 0.15
 local DRAW_REWARD 	= 0.05
-local WIN_REWARD 	= 0.2
+local WIN_REWARD 	= 0.25
 
-local MIN_PROB = 0.001  -- never let a move reach 0, keep some exploration
-local MAX_PROB = 0.99  -- never let a move reach 1, keep some exploration
+local MIN_PROB = 0.05  -- never let a move reach 0, keep some exploration
+local MAX_PROB = 0.95  -- never let a move reach 1, keep some exploration
 local GAMMA = 0.9 -- scalar describing learning decay
 
 local BasePlayer = require('base-player')
