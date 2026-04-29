@@ -118,7 +118,7 @@ numWinX = 0
 numWinO = 0
 numTied = 0
 
-for g in range(500000):
+for g in range(1000):
    # Alternate who goes first AND which diagonal the opening pieces are on.
    # Even games: X moves first, normal opening.
    # Odd  games: O moves first, swapped opening — mirrors the game exactly.
