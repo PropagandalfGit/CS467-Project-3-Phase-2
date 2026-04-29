@@ -57,7 +57,7 @@ KnowledgeBase.data = {}
 --- @type string: path to the knowledge base file, set during initialization
 KnowledgeBase.filePath = nil
 ---@type boolean: flag to let us know if the kbase has already been initialized
-KnowledgeBase.initialized = false
+KnowledgeBase.inUse = false
 
 -------------------------------------------------------------------------------------
 -- METHODS --------------------------------------------------------------------------
@@ -69,11 +69,12 @@ KnowledgeBase.initialized = false
 --- @param filePath string|nil: path to the knowledge base file (default: "./default-kb.txt")
 function KnowledgeBase.new(filePath)
     -- set file path, defaults to ./default-kb.txt
-    if KnowledgeBase.initialized then
-        assert(KnowledgeBase.filePath ~= filePath, "GIVEN FILE PATHS DO NOT MATCH")
+    if KnowledgeBase.inUse then
+        assert(KnowledgeBase.filePath == filePath, "GIVEN FILE PATHS DO NOT MATCH")
         return
     end
 
+    KnowledgeBase.inUse = true
     KnowledgeBase.filePath = filePath or "./default-kb.txt"
     -- opens file for read 
 	local file, err = io.open(KnowledgeBase.filePath, "r")
@@ -107,6 +108,10 @@ end
 --- Persists the current in-memory knowledge base to the save file.
 --- Overwrites the existing file contents entirely.sts the knowledge base to the save file
 function KnowledgeBase.save()
+    if not KnowledgeBase.inUse then
+        return
+    end
+
     local file, err = io.open(KnowledgeBase.filePath, "w")
     assert(file, err)
 
@@ -116,6 +121,7 @@ function KnowledgeBase.save()
     end
 
     file:close()
+    KnowledgeBase.inUse = false
 end
 
 --- Merges an agent's updated states into the shared knowledge base.
