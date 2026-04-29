@@ -3,6 +3,7 @@ local string = require('string-helpers')
 -------------------------------------------------------------------------------------
 -- HELPERS --------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
+local SEP = "\t"
 
 --- Deserializes a line from the knowledge base file into a state and data table.
 --- File format: "state|idx:prob,idx:prob,..."
@@ -10,12 +11,10 @@ local string = require('string-helpers')
 --- @return string state: the state string key
 --- @return table datum: array of {Idx: number, Prob: number} entries
 local function deserialize(line)
-    -- remove carriage return from line
-    line = line:gsub("\r" , "")
-    -- Strip line of any spaces
-    line = line:gsub(" ", "")
+    line = line:gsub("\r", ""):gsub(" ", "")
+    local state, datumStr = line:match("^(.-)" .. SEP .. "(.*)$")
+    assert(datumStr, "bad kb line: "..line)
 
-    local state, datumStr = table.unpack(string.split(line, "|"))
     local pairs = string.split(datumStr or error("error spliting state data"), ",")
     local datum = {}
     for _, pair in ipairs(pairs) do
@@ -39,7 +38,7 @@ local function serialize(state, data)
     for _, parts in ipairs(data) do
         table.insert(datum, parts.Idx .. ":" .. parts.Prob)
     end
-    return state .. "|" .. table.concat(datum, ",")
+    return state .. SEP .. table.concat(datum, ",")
 end
 
 

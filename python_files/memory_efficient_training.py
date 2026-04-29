@@ -133,7 +133,7 @@ BOARD_SWAPPED = "--------------OX----XO--------------"
 gameboard = "--------------XO----OX--------------"
 gameover = False
 
-TOTAL_GAMES = 5000
+TOTAL_GAMES = 500000
 
 print("  Loading agents and knowledge base...")
 X = Agent('X')

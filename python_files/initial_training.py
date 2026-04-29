@@ -203,7 +203,6 @@ X = Agent('X')
 O = Agent('O')
 t = time.time()
 print("  Agents ready — KB loaded\n")
-#O = Agent('O') # use this when agent is implemented
 
 # counters for tracking wins over multiple trials
 numWinX = 0
@@ -222,11 +221,12 @@ for g in range(1, TOTAL_GAMES + 1):
 
 
    if x_goes_first:
-       first_piece,  first_agent  = 'X', X
-       second_piece, second_agent = 'O', O
+      first_piece,  first_agent  = 'X', X
+      second_piece, second_agent = 'O', O
    else:
-       first_piece,  first_agent  = 'O', O
-       second_piece, second_agent = 'X', X
+        first_piece,  first_agent  = 'O', O
+        second_piece, second_agent = 'X', X
+       
 
    # play game until done
    move = 1
