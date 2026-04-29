@@ -134,11 +134,16 @@ for g in range(50):
        second_piece, second_agent = 'X', X
 
    while( not gameover ):
+      t_internal = time.time()
       # First player's turn
       if countPossibleMoves( gameboard, first_piece ) > 0:
          play = -1
          while not validMove( gameboard, play, first_piece ):
             play = first_agent.getMove( gameboard )
+            if time.time() - t_internal > 3:
+               print(gameboard)
+               raise Exception
+         t_internal = time.time()
          applyMove( play, first_piece )
 
       # Second player's turn
@@ -146,6 +151,10 @@ for g in range(50):
          play = -1
          while not validMove( gameboard, play, second_piece ):
             play = second_agent.getMove( gameboard )
+            if time.time() - t_internal > 3:
+               print(gameboard)
+               raise Exception
+         t_internal = time.time()
          applyMove( play, second_piece )
 
       # Check for game over
@@ -164,7 +173,6 @@ for g in range(50):
             O.endGame( 0, gameboard )
             numTied += 1
          gameover = True
-   print("GAME FINISHED")
 
 X.stopPlaying()
 O.stopPlaying()

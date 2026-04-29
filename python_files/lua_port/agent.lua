@@ -3,13 +3,13 @@ local sHelp = require('string-helpers')
 
 local FINAL_PLAYER = 'O'
 
-local LOSS_PUNISH 	= 0.15
-local DRAW_REWARD 	= 0.05
-local WIN_REWARD 	= 0.25
+local LOSS_PUNISH   = 0.1
+local DRAW_REWARD   = 0.05
+local WIN_REWARD    = 0.2
 
-local MIN_PROB = 0.05  -- never let a move reach 0, keep some exploration
-local MAX_PROB = 0.95  -- never let a move reach 1, keep some exploration
-local GAMMA = 0.9 -- scalar describing learning decay
+local MIN_PROB = 0.001
+local MAX_PROB = 0.99
+local GAMMA    = 0.9
 
 local BasePlayer    = require('base-player')
 local KnowledgeBase = require('knowledge-base')
@@ -64,6 +64,7 @@ local function transformBoard(t, board)
     for idx = 1, N * N do
         local r, c   = idxToRC(idx)
         local nr, nc = transformRC(t, r, c)
+        -- source cell (r,c) moves TO destination (nr,nc)
         out[rcToIdx(nr, nc)] = board[idx]
     end
     return out
@@ -112,8 +113,8 @@ local function XORBoard(board)
     local flipped = {}
     for _, c in pairs(board) do
         table.insert(flipped,
-            (c == 'X' and 'O') or
-            (c == 'O' and 'X') or '-')
+            c == 'X' and 'O' or
+            c == 'O' and 'X' or '-')
     end
     return flipped
 end
@@ -142,39 +143,55 @@ function AgentMethods.GetMove(self, gameboard)
     -- 1. Normalise colour: always reason as O
     local colourBoard = (self.symbol ~= FINAL_PLAYER) and XORBoard(gameboard) or gameboard
 
-    -- 2. Canonicalize over D4
-    local canonBoard, canonStr, appliedT = canonicalize(colourBoard)
-
-    -- 3. Register unseen canonical state
-    if not KnowledgeBase.stateExists(canonStr) then
-        local validIdcs = {}
-        for i = 1, N * N do
-            if self:IsValidMove(canonBoard, i, FINAL_PLAYER) then
-                table.insert(validIdcs, i)
-            end
+    -- 2. Find valid moves on the colour-normalised board BEFORE canonicalizing.
+    --    D4 transforms do not preserve move validity (a move that flips pieces
+    --    in one orientation may flip nothing after rotation), so we must validate
+    --    on the real board and then map indices into canonical space.
+    local validRealIdcs = {}
+    for i = 1, N * N do
+        if self:IsValidMove(colourBoard, i, FINAL_PLAYER) then
+            table.insert(validRealIdcs, i)
         end
-
-		if #validIdcs == 0 then
-        	return -1  -- no valid moves; caller should not have invoked GetMove
-    	end
-        KnowledgeBase.addNewState(canonStr, BuildProbPair(validIdcs))
     end
 
-        -- 4. Sample a move on the canonical board, restricted to currently valid moves.
-    -- KB entries may include cells now occupied (state seen earlier when they were free).
+    if #validRealIdcs == 0 then
+        return -1  -- no valid moves; caller should not have invoked GetMove
+    end
+
+    -- 3. Canonicalize over D4
+    local canonBoard, canonStr, appliedT = canonicalize(colourBoard)
+
+    -- 4. Map valid real indices into canonical space for KB lookup/storage.
+    local validCanonIdcs = {}
+    for _, realI in ipairs(validRealIdcs) do
+        table.insert(validCanonIdcs, transformIdx(appliedT, realI))
+    end
+
+    -- 5. Register unseen canonical state using canonical-space indices.
+    if not KnowledgeBase.stateExists(canonStr) then
+        KnowledgeBase.addNewState(canonStr, BuildProbPair(validCanonIdcs))
+    end
+
+    -- 6. Sample from KB, but restrict to moves that are valid RIGHT NOW
+    --    (a prior visit may have stored indices that are now occupied).
+    local validCanonSet = {}
+    for _, ci in ipairs(validCanonIdcs) do
+        validCanonSet[ci] = true
+    end
+
     local validNow = {}
     local totalProb = 0
     for _, pair in ipairs(KnowledgeBase.data[canonStr]) do
-        if self:IsValidMove(canonBoard, pair["Idx"], FINAL_PLAYER) then
+        if validCanonSet[pair["Idx"]] then
             table.insert(validNow, pair)
             totalProb = totalProb + pair["Prob"]
         end
     end
- 
+
     if #validNow == 0 then
-        return -1  -- no valid moves; caller should not have invoked GetMove
+        return -1  -- safety fallback
     end
- 
+
     local canonIdx = nil
     local rand = math.random() * totalProb
     for _, pair in ipairs(validNow) do
@@ -184,15 +201,14 @@ function AgentMethods.GetMove(self, gameboard)
         end
         rand = rand - pair["Prob"]
     end
-
     if not canonIdx then
         canonIdx = validNow[#validNow]["Idx"]
     end
 
-    -- 5. Map canonical index back to the real board
+    -- 7. Map chosen canonical index back to the real (colour-normalised) board.
     local realIdx = unTransformIdx(appliedT, canonIdx)
 
-    -- 6. Store canonical state + canonical index for EndGame credit
+    -- 8. Store canonical state + canonical index for EndGame credit.
     table.insert(self.history, { state = canonStr, idx = canonIdx })
 
     return realIdx
@@ -207,13 +223,8 @@ function AgentMethods.AdjustProb(self, pairs, targetIdx, delta)
     end
 
     local total = 0
-    for _, pair in ipairs(pairs) do 
-		total = total + pair["Prob"] 
-	end
-
-    for _, pair in ipairs(pairs) do 
-		pair["Prob"] = pair["Prob"] / total
-	end
+    for _, pair in ipairs(pairs) do total = total + pair["Prob"] end
+    for _, pair in ipairs(pairs) do pair["Prob"] = pair["Prob"] / total end
 
     local clampTotal, clampedCount = 0, 0
     for _, pair in ipairs(pairs) do
@@ -222,14 +233,10 @@ function AgentMethods.AdjustProb(self, pairs, targetIdx, delta)
         elseif pair["Prob"] > MAX_PROB then
             pair["Prob"] = MAX_PROB; clampedCount = clampedCount + 1
         end
-
         clampTotal = clampTotal + pair["Prob"]
     end
-
     if clampedCount > 0 then
-        for _, pair in ipairs(pairs) do 
-			pair["Prob"] = pair["Prob"] / clampTotal 
-		end
+        for _, pair in ipairs(pairs) do pair["Prob"] = pair["Prob"] / clampTotal end
     end
 end
 
