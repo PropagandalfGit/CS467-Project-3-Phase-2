@@ -3,12 +3,12 @@ local sHelp = require('string-helpers')
 
 local FINAL_PLAYER = 'O'
 
-local LOSS_PUNISH 	= 0.15
+local LOSS_PUNISH 	= 0.1
 local DRAW_REWARD 	= 0.05
-local WIN_REWARD 	= 0.1
+local WIN_REWARD 	= 0.2
 
 local MIN_PROB = 0.001  -- never let a move reach 0, keep some exploration
-local MAX_PROB = 0.99  -- never let a move reach 0, keep some exploration
+local MAX_PROB = 0.99  -- never let a move reach 1, keep some exploration
 local GAMMA = 0.9 -- scalar describing learning decay
 
 local BasePlayer = require('base-player')
@@ -57,13 +57,13 @@ end
 ---@param gameboard table
 ---@return integer
 function AgentMethods.GetMove(self, gameboard)
-	gameboard = self.symbol ~= FINAL_PLAYER and XORBoard(gameboard) or gameboard
-	local boardStr = table.concat(gameboard)
+	local flipBoard = self.symbol ~= FINAL_PLAYER and XORBoard(gameboard) or gameboard
+	local boardStr = table.concat(flipBoard)
 
 	if not KnowledgeBase.stateExists(boardStr) then
 		local usedIdcs = {} do
-			for i, _ in ipairs(gameboard) do
-				if self:IsValidMove(gameboard, i, FINAL_PLAYER) then
+			for i, _ in ipairs(flipBoard) do
+				if self:IsValidMove(flipBoard, i, FINAL_PLAYER) then
 					table.insert(usedIdcs, i)
 				end
 			end
@@ -99,9 +99,9 @@ function AgentMethods.AdjustProb(self, pairs, targetIdx, delta)
         if pair["Idx"] == targetIdx then
 			local prob = pair["Prob"] + delta
 			if prob <= MIN_PROB then
-				prob = 0
+				prob = MIN_PROB
 			elseif prob >= MAX_PROB then
-				prob = 1
+				prob = MAX_PROB
 			end
 			
             pair["Prob"] = prob

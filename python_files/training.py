@@ -1,7 +1,7 @@
 #from agent import Agent
-from randomplayer import RandomPlayer
+from _typeshed import Self
+import time
 from agent import Agent
-import random
 import sys
 import csv
 import os
@@ -176,6 +176,14 @@ def getEndgameStatus( board ):
    
    return countX - countO
 
+# Standard starting positions.
+# NORMAL:  X pieces at 14,21 / O pieces at 15,20  (0-indexed)
+# SWAPPED: X pieces at 15,20 / O pieces at 14,21
+# Alternating ensures neither player has a structural first-move advantage
+# over a full training run, and both players see mirrored opening states.
+BOARD_NORMAL  = "--------------XO----OX--------------"
+BOARD_SWAPPED = "--------------OX----XO--------------"
+
 # global variables
 gameboard = "--------------XO----OX--------------"
 gameover = False
@@ -195,6 +203,7 @@ print()
 print("  Loading agents and knowledge base...")
 X = Agent('X')
 O = Agent('O')
+t = time.time()
 print("  Agents ready — KB loaded\n")
 #O = Agent('O') # use this when agent is implemented
 
@@ -209,8 +218,17 @@ print("-" * 46)
 # how many games do you want to play?
 for g in range(1, TOTAL_GAMES + 1):
    # reset global variables for new game
-   gameboard = "--------------XO----OX--------------"
-   gameover = False
+   x_goes_first = (g % 2 == 0)
+   gameboard = BOARD_NORMAL if x_goes_first else BOARD_SWAPPED
+   gameover  = False
+
+
+   if x_goes_first:
+       first_piece,  first_agent  = 'X', X
+       second_piece, second_agent = 'O', O
+   else:
+       first_piece,  first_agent  = 'O', O
+       second_piece, second_agent = 'X', X
 
    # play game until done
    move = 1

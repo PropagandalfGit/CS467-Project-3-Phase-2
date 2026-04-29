@@ -128,7 +128,7 @@ def getEndgameStatus( board ):
 gameboard = "--------------XO----OX--------------"
 gameover = False
 
-X = RandomPlayer('X')
+X = Agent('X')
 O = Agent('O')
 #O = Agent('O') # use this when agent is implemented
 
@@ -150,7 +150,7 @@ while( not gameover ):
      play = -1
      while not validMove( gameboard, play, 'O' ):
         play = O.getMove( gameboard )
-        #print("Play",play,"for O")
+        print("Play",play,"for O")
      applyMove( play, 'O' )
      printBoard(gameboard)
      input("Continue?")
