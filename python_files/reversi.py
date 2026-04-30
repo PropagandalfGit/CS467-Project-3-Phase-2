@@ -1,17 +1,8 @@
 #from agent import Agent
-import time
+from randomplayer import RandomPlayer
 from agent import Agent
+import random
 import sys
-
-def live_counter(g, total_games):
-    # Find the previous and next milestone relative to current game
-    bar_width  = 30
-    pct        = g / total_games
-    filled     = int(bar_width * pct)
-    bar        = "█" * filled + "░" * (bar_width - filled)
-    sys.stdout.write(f"\r [{bar}] {g:>10,} / {total_games:,} games  ({pct*100:.2f}%)")
-    sys.stdout.flush()
-
 
 # decide if pieces are flippable in this direction
 def flips( board, index, piece, step ):
@@ -102,6 +93,18 @@ def applyMove( x, p ): # index, piece
    # save modified gameboard
    gameboard = b
    
+def printBoard( board ):
+   print()
+   print( "##########" )
+   print( "# " + board[ 0: 6] + " #" )
+   print( "# " + board[ 6:12] + " #" )
+   print( "# " + board[12:18] + " #" )
+   print( "# " + board[18:24] + " #" )
+   print( "# " + board[24:30] + " #" )
+   print( "# " + board[30:36] + " #" )
+   print( "##########" )
+   print()
+
 # how many moves does this player have currently available?
 def countPossibleMoves( board, piece ):
    movesLeft = 0
@@ -121,25 +124,12 @@ def getEndgameStatus( board ):
    
    return countX - countO
 
-# Standard starting positions.
-# NORMAL:  X pieces at 14,21 / O pieces at 15,20  (0-indexed)
-# SWAPPED: X pieces at 15,20 / O pieces at 14,21
-# Alternating ensures neither player has a structural first-move advantage
-# over a full training run, and both players see mirrored opening states.
-BOARD_NORMAL  = "--------------XO----OX--------------"
-BOARD_SWAPPED = "--------------OX----XO--------------"
-
 # global variables
 gameboard = "--------------XO----OX--------------"
 gameover = False
 
-TOTAL_GAMES = 500_000
-
-print("  Loading agents and knowledge base...")
 X = Agent('X')
 O = Agent('O')
-t = time.time()
-print("  Agents ready — KB loaded\n")
 #O = Agent('O') # use this when agent is implemented
 
 # counters for tracking wins over multiple trials
@@ -148,19 +138,10 @@ numWinO = 0
 numTied = 0
 
 # how many games do you want to play?
-for g in range(1, TOTAL_GAMES + 1):
+for g in range(1000):
    # reset global variables for new game
-   x_goes_first = (g % 2 == 0)
-   gameboard = BOARD_NORMAL if x_goes_first else BOARD_SWAPPED
-   gameover  = False
-
-
-   if x_goes_first:
-       first_piece,  first_agent  = 'X', X
-       second_piece, second_agent = 'O', O
-   else:
-       first_piece,  first_agent  = 'O', O
-       second_piece, second_agent = 'X', X
+   gameboard = "--------------XO----OX--------------"
+   gameover = False
 
    # play game until done
    move = 1
@@ -201,26 +182,16 @@ for g in range(1, TOTAL_GAMES + 1):
 
       move = move + 1
 
-   if g % 100 == 0:
-      live_counter(g, TOTAL_GAMES)
-
-
-
    # when running thousands of learning trials,
    #   periodic updates are nice confirmation
    #   that everything's still running
 #   if (numWinX + numWinO + numTied) % 1000 == 0:
 #      print( "Completed " + str(numWinX + numWinO + numTied) )
-sys.stdout.write("\r" + " " * 60 + "\r")
-print("  Final KB save...")
-O.stopPlaying()
-X.stopPlaying()
-print("  Done!\n")
 
-print("  ╔══════════════════════════════════════════════╗")
-print("  ║                 Final Results                ║")
-print("  ╚══════════════════════════════════════════════╝")
-print(f"  X wins : {numWinX:>10,}")
-print(f"  O wins : {numWinO:>10,}  ◄")
-print(f"  Ties   : {numTied:>10,}")
-print()
+#X.stopPlaying()
+#O.stopPlaying()
+
+print( "X   : " + str(numWinX)  + " games" )
+print( "O   : " + str(numWinO) + " games ***" )
+print( "Tie : " + str(numTied)  + " games" )
+

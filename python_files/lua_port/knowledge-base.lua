@@ -94,6 +94,7 @@ function KnowledgeBase.new(filePath)
     for line in file:lines() do
         local state, data = deserialize(line)
         KnowledgeBase.data[state] = data
+        TOTAL_STATES_FOUND = TOTAL_STATES_FOUND + 1
     end
     file:close()
 end
@@ -124,11 +125,13 @@ function KnowledgeBase.save()
     end
 
     file:close()
+end
+
+function KnowledgeBase.showStatesFound()
     TOTAL_STATES_FOUND = TOTAL_STATES_FOUND + NEW_STATES_FOUND
     print(TOTAL_STATES_FOUND, "total states found")
     print(NEW_STATES_FOUND, "new states found")
     NEW_STATES_FOUND = 0
-
 end
 
 --- Merges an agent's updated states into the shared knowledge base.
@@ -139,6 +142,35 @@ function KnowledgeBase.update(agentUpdates)
     for state, data in pairs(agentUpdates) do
         KnowledgeBase.data[state] = data
     end
+end
+
+--- Removes states whose distribution hasn't diverged from uniform —
+--- they've been seen but never reinforced, so they're dead weight.
+--- @param threshold number: max allowed deviation from uniform (default 0.015)
+--- @return integer: number of states pruned
+function KnowledgeBase.pruneUnlearned(threshold)
+    threshold = threshold or 0.015
+    local pruned = 0
+    for state, data in pairs(KnowledgeBase.data) do
+        local n = #data
+        if n == 0 then
+            KnowledgeBase.data[state] = nil
+            pruned = pruned + 1
+        else
+            local uniform = 1.0 / n
+            local maxDev = 0
+            for _, pair in ipairs(data) do
+                local dev = math.abs(pair.Prob - uniform)
+                if dev > maxDev then maxDev = dev end
+            end
+            if maxDev < threshold then
+                KnowledgeBase.data[state] = nil
+                pruned = pruned + 1
+            end
+        end
+    end
+    print(pruned .. " unlearned states pruned")
+    return pruned
 end
 
 --- Adds a new state entry to the in-memory knowledge base.

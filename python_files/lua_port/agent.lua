@@ -3,13 +3,21 @@ local sHelp = require('string-helpers')
 
 local FINAL_PLAYER = 'O'
 
-local LOSS_PUNISH 	= 0.15
+local LOSS_PUNISH 	= 0.1
 local DRAW_REWARD 	= 0.05
-local WIN_REWARD 	= 0.25
+local WIN_REWARD 	= 0.2
 
-local MIN_PROB = 0.05  -- never let a move reach 0, keep some exploration
-local MAX_PROB = 0.95  -- never let a move reach 1, keep some exploration
+local MIN_PROB = 0.001  -- never let a move reach 0, keep some exploration
+local MAX_PROB = 0.99  -- never let a move reach 1, keep some exploration
 local GAMMA = 0.9 -- scalar describing learning decay
+
+local EPSILON     = 0.25   -- start: 25% random exploration
+local EPSILON_MIN = 0.05   -- floor: always keep 5% exploration
+-- to calculate the EPSILON_DECAY such that EPSILON hits the minimum by a specific number of games
+-- use this formula
+--      decay = (EPSILON_MIN / EPSILON) * (1/number of games you want the EPSILON to hit min by)
+local EPSILON_DECAY = 0.999996  -- scalar describing exploration decay
+
 
 local BasePlayer = require('base-player')
 local KnowledgeBase = require('knowledge-base')
@@ -72,7 +80,8 @@ function AgentMethods.GetMove(self, gameboard)
 		KnowledgeBase.addNewState(boardStr, BuildProbPair(usedIdcs))
 	end
 
-	local chosenIdx = nil
+	--[[
+    local chosenIdx = nil
 	local rand = math.random()
 	for _, pair in ipairs(KnowledgeBase.data[boardStr]) do
 		local w = pair["Prob"]
@@ -88,7 +97,29 @@ function AgentMethods.GetMove(self, gameboard)
 	if not chosenIdx then
 		error("This should not happen", 2)
 	end
+    ]]
+    local chosenIdx
+    if math.random() < EPSILON then
+        -- explore
+        local candidates = {}
+        for _, pair in ipairs(KnowledgeBase.data[boardStr]) do
+            if pair.Prob > 0 then
+                table.insert(candidates, pair.Idx)
+            end
+        end
+        chosenIdx = candidates[math.random(#candidates)]
+    else
+        -- exploit
+        local bestProb = -1
+        for _, pair in ipairs(KnowledgeBase.data[boardStr]) do
+            if pair.Prob > bestProb then
+                bestProb  = pair.Prob
+                chosenIdx = pair.Idx
+            end
+        end
+    end
 
+    EPSILON = math.max(EPSILON_MIN, EPSILON * EPSILON_DECAY)
 	table.insert(self.history, 1, {state = boardStr, idx = chosenIdx})
 	return chosenIdx
 end
@@ -148,6 +179,8 @@ function AgentMethods.EndGame(self, status)
 end
 
 function AgentMethods.StopPlaying(self)
+    KnowledgeBase.pruneUnlearned()
+    KnowledgeBase.showStatesFound()
 	KnowledgeBase.save()
 end
 

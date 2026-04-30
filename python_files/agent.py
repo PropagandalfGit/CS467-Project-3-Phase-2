@@ -1,5 +1,5 @@
 import lupa
-lua = lupa.LuaRuntime()
+lua = lupa.LuaRuntime(unpack_returned_tuples=True)
 lua.execute("""
     package.path = package.path .. ';./?.lua;./lua_port/?.lua'
 """)
