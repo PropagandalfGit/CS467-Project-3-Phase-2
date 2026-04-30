@@ -51,14 +51,14 @@ def applyFlip( board, index, piece, step ):
 def applyMove( x, p ):
    global gameboard
    b = gameboard
-   
+
    if not validMove(b,x,p):
       return False
-   
-   up    = x >= 12
-   down  = x <  24
-   left  = x % 6 > 1
-   right = x % 6 < 4
+
+   up    = x >= 6
+   down  = x <  30
+   left  = x % 6 > 0
+   right = x % 6 < 5
    
    if          left  and flips(b,x,p,-1): b = applyFlip(b,x,p,-1)
    if up   and left  and flips(b,x,p,-7): b = applyFlip(b,x,p,-7)
@@ -118,7 +118,17 @@ numWinX = 0
 numWinO = 0
 numTied = 0
 
-for g in range(50):
+NUM_GAMES = 500
+CORNERS = (0, 5, 30, 35)
+
+margins = []                 # signed: positive = X won by, negative = O won by
+corner_splits = []           # list of (X_corners, O_corners)
+forced_passes_X = 0
+forced_passes_O = 0
+total_moves_X   = 0
+total_moves_O   = 0
+
+for g in range(NUM_GAMES):
    # Alternate who goes first AND which diagonal the opening pieces are on.
    # Even games: X moves first, normal opening.
    # Odd  games: O moves first, swapped opening — mirrors the game exactly.
@@ -136,7 +146,8 @@ for g in range(50):
    while( not gameover ):
       t_internal = time.time()
       # First player's turn
-      if countPossibleMoves( gameboard, first_piece ) > 0:
+      first_can_move = countPossibleMoves( gameboard, first_piece ) > 0
+      if first_can_move:
          play = -1
          while not validMove( gameboard, play, first_piece ):
             play = first_agent.getMove( gameboard )
@@ -145,9 +156,16 @@ for g in range(50):
                raise Exception
          t_internal = time.time()
          applyMove( play, first_piece )
+         if first_piece == 'X': total_moves_X += 1
+         else:                  total_moves_O += 1
+      elif countPossibleMoves( gameboard, second_piece ) > 0:
+         # forced pass: opponent still has moves so game isn't over yet
+         if first_piece == 'X': forced_passes_X += 1
+         else:                  forced_passes_O += 1
 
       # Second player's turn
-      if countPossibleMoves( gameboard, second_piece ) > 0:
+      second_can_move = countPossibleMoves( gameboard, second_piece ) > 0
+      if second_can_move:
          play = -1
          while not validMove( gameboard, play, second_piece ):
             play = second_agent.getMove( gameboard )
@@ -156,10 +174,19 @@ for g in range(50):
                raise Exception
          t_internal = time.time()
          applyMove( play, second_piece )
+         if second_piece == 'X': total_moves_X += 1
+         else:                   total_moves_O += 1
+      elif countPossibleMoves( gameboard, first_piece ) > 0:
+         if second_piece == 'X': forced_passes_X += 1
+         else:                   forced_passes_O += 1
 
       # Check for game over
       if countPossibleMoves( gameboard, 'X' ) + countPossibleMoves( gameboard, 'O' ) == 0:
          status = getEndgameStatus( gameboard )
+         margins.append( status )
+         x_corners = sum(1 for c in CORNERS if gameboard[c] == 'X')
+         o_corners = sum(1 for c in CORNERS if gameboard[c] == 'O')
+         corner_splits.append( (x_corners, o_corners) )
          if status > 0:
             X.endGame(  1, gameboard )
             O.endGame( -1, gameboard )
@@ -178,6 +205,41 @@ X.stopPlaying()
 O.stopPlaying()
 
 print(f"TIME TAKEN WAS {time.time() - t}")
-print( "X   : " + str(numWinX)  + " games" )
-print( "O   : " + str(numWinO) + " games ***" )
-print( "Tie : " + str(numTied)  + " games" )
+print()
+print(f"Games:        {NUM_GAMES}")
+print(f"X wins:       {numWinX}  ({100*numWinX/NUM_GAMES:.1f}%)")
+print(f"O wins:       {numWinO}  ({100*numWinO/NUM_GAMES:.1f}%)")
+print(f"Ties:         {numTied}  ({100*numTied/NUM_GAMES:.1f}%)")
+print()
+
+abs_margins = [abs(m) for m in margins]
+decisive    = [m for m in margins if m != 0]
+print(f"Avg |margin| (all):      {sum(abs_margins)/len(abs_margins):.2f}")
+if decisive:
+   print(f"Avg |margin| (decisive): {sum(abs(m) for m in decisive)/len(decisive):.2f}")
+print(f"Margin distribution:")
+buckets = {"0 (tie)": 0, "1-3": 0, "4-7": 0, "8-15": 0, "16+": 0}
+for m in abs_margins:
+   if   m == 0:  buckets["0 (tie)"] += 1
+   elif m <= 3:  buckets["1-3"]     += 1
+   elif m <= 7:  buckets["4-7"]     += 1
+   elif m <= 15: buckets["8-15"]    += 1
+   else:         buckets["16+"]     += 1
+for k, v in buckets.items():
+   print(f"  {k:8}: {v:4}  ({100*v/NUM_GAMES:.1f}%)")
+print()
+
+print("Corner-split distribution (X-O):")
+split_counts = {}
+for s in corner_splits:
+   split_counts[s] = split_counts.get(s, 0) + 1
+for s in sorted(split_counts.keys(), key=lambda p: (-p[0], p[1])):
+   print(f"  {s[0]}-{s[1]}: {split_counts[s]:4}  ({100*split_counts[s]/NUM_GAMES:.1f}%)")
+print()
+
+print(f"Forced passes:")
+print(f"  X total: {forced_passes_X}  (avg {forced_passes_X/NUM_GAMES:.2f}/game)")
+print(f"  O total: {forced_passes_O}  (avg {forced_passes_O/NUM_GAMES:.2f}/game)")
+print(f"Total moves placed:")
+print(f"  X: {total_moves_X}  (avg {total_moves_X/NUM_GAMES:.2f}/game)")
+print(f"  O: {total_moves_O}  (avg {total_moves_O/NUM_GAMES:.2f}/game)")

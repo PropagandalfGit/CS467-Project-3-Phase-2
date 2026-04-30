@@ -33,10 +33,10 @@ def validMove( b, x, p ): # board, index, piece
    if b[x] != '-':
       return False 
    # otherwise, check for flipping pieces
-   up    = x >= 12   # at least third row down
-   down  = x <  24   # at least third row up
-   left  = x % 6 > 1 # at least third column
-   right = x % 6 < 4 # not past fourth column
+   up    = x >= 6    # at least second row down
+   down  = x <  30   # at least second row up
+   left  = x % 6 > 0 # at least second column
+   right = x % 6 < 5 # not past fifth column
    return (          left  and flips(b,x,p,-1)  # left
          or up   and left  and flips(b,x,p,-7)  # up/left
          or up             and flips(b,x,p,-6)  # up
@@ -66,11 +66,11 @@ def applyMove( x, p ): # index, piece
    if not validMove(b,x,p):
       return False
    
-   up    = x >= 12   # at least third row down
-   down  = x <  24   # at least third row up
-   left  = x % 6 > 1 # at least third column
-   right = x % 6 < 4 # not past fourth column
-   
+   up    = x >= 6    # at least second row down
+   down  = x <  30   # at least second row up
+   left  = x % 6 > 0 # at least second column
+   right = x % 6 < 5 # not past fifth column
+
    # flip everything that should be flipped
    if          left  and flips(b,x,p,-1): # left
       b = applyFlip(b,x,p,-1)
