@@ -3,28 +3,33 @@ local string = require('string-helpers')
 -------------------------------------------------------------------------------------
 -- HELPERS --------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
-local SEP = "\t"
 
 --- Deserializes a line from the knowledge base file into a state and data table.
 --- File format: "state|idx:prob,idx:prob,..."
 --- @param line string: a single line from the knowledge base file
---- @return string state: the state string key
---- @return table datum: array of {Idx: number, Prob: number} entries
+--- @return string? state: the state string key
+--- @return table? datum: array of {Idx: number, Prob: number} entries
 local function deserialize(line)
     line = line:gsub("\r", ""):gsub(" ", "")
-    local state, datumStr = line:match("^(.-)" .. SEP .. "(.*)$")
-    assert(datumStr, "bad kb line: "..line)
+    if line == "" then return nil end
 
-    local pairs = string.split(datumStr or error("error spliting state data"), ",")
-    local datum = {}
-    for _, pair in ipairs(pairs) do
-        local parts = string.split(pair, ":")
-        table.insert(datum, {
-            ["Idx"] = tonumber(parts[1]),
-            ["Prob"] = tonumber(parts[2]),
-        })
+    local parts = string.split(line, "|")
+    -- 5 features + 1 data field = 6 parts
+    if #parts ~= 6 then
+        io.stderr:write("skipping malformed kb line ("..#parts.." parts): "..line.."\n")
+        return nil
     end
 
+    local state = table.concat({parts[1], parts[2], parts[3], parts[4], parts[5]}, "|")
+    local datumStr = parts[6]
+
+    local datum = {}
+    for _, pair in ipairs(string.split(datumStr, ",")) do
+        local kv = string.split(pair, ":")
+        if kv[1] and kv[2] then
+            datum[kv[1]] = tonumber(kv[2])
+        end
+    end
     return state, datum
 end
 
@@ -35,10 +40,10 @@ end
 --- @return string: the serialized line
 local function serialize(state, data)
     local datum = {}
-    for _, parts in ipairs(data) do
-        table.insert(datum, parts.Idx .. ":" .. parts.Prob)
+    for cat, prob in pairs(data) do        -- pairs, not ipairs
+        table.insert(datum, cat .. ":" .. prob)
     end
-    return state .. SEP .. table.concat(datum, ",")
+    return state .. "|" .. table.concat(datum, ",")
 end
 
 
@@ -92,7 +97,7 @@ function KnowledgeBase.new(filePath)
     -- splits and places state data into in-memory kb
     for line in file:lines() do
         local state, data = deserialize(line)
-        KnowledgeBase.data[state] = data
+        if state then KnowledgeBase.data[state] = data end
     end
     file:close()
 end

@@ -60,6 +60,20 @@ local CORNERS = { 1, 6, 31, 36 }
 -- Edge cells = top/bottom rows + left/right cols, excluding corners
 local EDGES = { 2,3,4,5, 32,33,34,35, 7,13,19,25, 12,18,24,30 }
 
+local CORNER_SET   = { [1]=true, [6]=true, [31]=true, [36]=true }
+local X_SQUARE_SET = { [8]=true, [11]=true, [26]=true, [29]=true }
+local C_SQUARE_SET = { [2]=true, [5]=true, [7]=true, [12]=true,
+						[25]=true, [30]=true, [32]=true, [35]=true }
+
+local MOVE_TYPES = {
+	"corner",        -- the move IS a corner (positions 1, 6, 31, 36 1-indexed)
+	"x_square",      -- diagonal-adjacent to a corner (8, 11, 26, 29)
+	"c_square",      -- edge-adjacent to a corner (2, 5, 7, 12, 25, 30, 32, 35)
+	"safe_edge",     -- on an edge, not a c_square
+	"low_flip",      -- interior, flips ≤ 2 pieces
+	"high_flip",     -- interior, flips ≥ 3 pieces
+}
+
 local function bucket(val, thresholds, labels)
     for i, t in ipairs(thresholds) do
         if val <= t then return labels[i] end
@@ -157,18 +171,28 @@ local function BuildProbPair(idces)
     return result
 end
 
+function AgentMethods.ClassifyMove(self, board, idx, symbol)
+	if CORNER_SET[idx]   then return "corner"   end
+	if X_SQUARE_SET[idx] then return "x_square" end
+	if C_SQUARE_SET[idx] then return "c_square" end
+
+	local row = (idx - 1) // 6
+	local col = (idx - 1) % 6
+	if row == 0 or row == 5 or col == 0 or col == 5 then
+		return "safe_edge"
+	end
+
+	local flipped = self:CountFlips(board, idx, symbol)  -- you need this; reuse Flips logic
+	return flipped <= 2 and "low_flip" or "high_flip"
+end
+
 function AgentMethods.GetMove(self, gameboard)
-	 assert(gameboard[0] == nil, "gameboard is 0-indexed (got board[0])")
-  assert(gameboard[1] ~= nil and gameboard[36] ~= nil, "gameboard not 1..36")
-  local seen = 0
-  for k, _ in pairs(gameboard) do seen = seen + 1 end
-  assert(seen == 36, "gameboard has "..seen.." entries, expected 36")
     -- 1. Normalise colour: always reason as O
     local colourBoard = (self.symbol ~= FINAL_PLAYER) and XORBoard(gameboard) or gameboard
 
     -- 2. Find valid moves on the colour-normalised board
     local validIdcs = {}
-    for i = 1, N * N do
+    for i, _ in ipairs(colourBoard) do
         if self:IsValidMove(colourBoard, i, FINAL_PLAYER) then
             table.insert(validIdcs, i)
         end
@@ -181,115 +205,65 @@ function AgentMethods.GetMove(self, gameboard)
     -- 3. Build feature key (orientation-independent, so no D4 needed)
     local featureKey = extractFeatures(colourBoard)
 
-    -- 4. Register unseen feature state.
-    --    Move indices stored here are on the colour-normalised real board.
-    if not KnowledgeBase.stateExists(featureKey) then
-        KnowledgeBase.addNewState(featureKey, BuildProbPair(validIdcs))
-    end
-
-    -- 5. Sample from KB restricted to moves valid RIGHT NOW.
-    --    A prior visit to the same feature state had different valid moves
-    --    (different board, same features), so we intersect with current valid set.
     local validSet = {}
     for _, i in ipairs(validIdcs) do validSet[i] = true end
 
-    local validNow = {}
-	local totalProb = 0
-	for _, pair in ipairs(KnowledgeBase.data[featureKey]) do
-		if self:IsValidMove(colourBoard, pair.Idx, FINAL_PLAYER) then
-			table.insert(validNow, pair)
-			totalProb = totalProb + pair.Prob
+    local weights = KnowledgeBase.data[featureKey]
+	if not weights then
+		weights = {}
+		for _, t in ipairs(MOVE_TYPES) do
+			weights[t] = 1 / #MOVE_TYPES
 		end
+
+		KnowledgeBase.addNewState(featureKey, weights)
 	end
 
-	if #validNow == 0 then
-		validNow = BuildProbPair(validIdcs)
-		totalProb = 1.0
-	end
-
-    -- If no stored moves match current valid moves, fall back to uniform over valid moves.
-    -- This happens when the feature state was seen before with a completely different
-    -- set of valid board positions (same features, different actual board layout).
-    local kbPairs = KnowledgeBase.data[featureKey]
-	local known = {}
-	for _, p in ipairs(kbPairs) do
-		known[p.Idx] = true
-	end
-
+	local dist = {}
+	local total = 0
 	for _, idx in ipairs(validIdcs) do
-		if not known[idx] then
-			table.insert(kbPairs, { Idx = idx, Prob = MIN_PROB })
-		end
+		local cat = self:ClassifyMove(colourBoard, idx, FINAL_PLAYER)
+
+		local w = weights[cat]
+		table.insert(dist, { Idx = idx, Cat = cat, Prob = w })
+		total = total + w
 	end
 
-    -- 6. Sample a move
-    local chosenIdx = nil
-    local rand = math.random() * totalProb
-    for _, pair in ipairs(validNow) do
-        if rand < pair["Prob"] then
-            chosenIdx = pair["Idx"]
-            break
-        end
-        rand = rand - pair["Prob"]
-    end
-
-    if not chosenIdx then
-        chosenIdx = validNow[#validNow]["Idx"]
-    end
-
-	local stillValid = self:IsValidMove(colourBoard, chosenIdx, FINAL_PLAYER)
-	if colourBoard[chosenIdx] ~= '-' or not stillValid then
-		print("=== invalid move chosen ===")
-		print("symbol=", self.symbol, "chosenIdx=", chosenIdx, "type=", type(chosenIdx))
-		print("colourBoard[chosenIdx]=", tostring(colourBoard[chosenIdx]))
-		print("stillValid=", stillValid)
-		print("validIdcs=", table.concat(validIdcs, ","))
-		print("featureKey=", featureKey)
-		print("path=", #validNow == #validIdcs and "fallback" or "kb-filter")
-		print("kb-pairs:")
-		for _, p in ipairs(KnowledgeBase.data[featureKey]) do
-			print("  ", p.Idx, type(p.Idx), p.Prob)
-		end
-		print("colourBoard:")
-		for r = 0, 5 do
-			local row = {}
-			for c = 1, 6 do row[c] = tostring(colourBoard[r*6 + c]) end
-			print("  "..table.concat(row, " "))
-		end
-		error("invalid move")
+	-- sample from dist as before, but record the category in history, not the square
+	local rand = math.random() * total
+	local chosenIdx, chosenCat
+	for _, e in ipairs(dist) do
+		if rand < e.Prob then chosenIdx, chosenCat = e.Idx, e.Cat; break end
+		rand = rand - e.Prob
 	end
+	chosenIdx  = chosenIdx  or dist[#dist].Idx
+	chosenCat  = chosenCat  or dist[#dist].Cat
 
     -- 7. Record (featureKey, chosenIdx) for EndGame credit
-    table.insert(self.history, { state = featureKey, idx = chosenIdx })
-
-    -- chosenIdx is already on the real board (no un-transform needed)
+    table.insert(self.history, { state = featureKey, idx = chosenIdx, cat = chosenCat })
     return chosenIdx
 end
 
-function AgentMethods.AdjustProb(self, pairs, targetIdx, delta)
-    for _, pair in ipairs(pairs) do
-        if pair["Idx"] == targetIdx then
-            pair["Prob"] = pair["Prob"] + delta
-            break
-        end
-    end
+function AgentMethods.AdjustProb(self, weights, targetCat, delta)
+	-- 1. Apply the reward/punishment to the chosen category    
+	weights[targetCat] = weights[targetCat] + delta
 
-    local total = 0
-    for _, pair in ipairs(pairs) do total = total + pair["Prob"] end
-    for _, pair in ipairs(pairs) do pair["Prob"] = pair["Prob"] / total end
+	-- 2. Normalize so the distribution sums to 1
+	local total = 0
+	for _, t in ipairs(MOVE_TYPES) do total = total + weights[t] end
+	for _, t in ipairs(MOVE_TYPES) do weights[t] = weights[t] / total end
 
-    local clampTotal, clampedCount = 0, 0
-    for _, pair in ipairs(pairs) do
-        if pair["Prob"] < MIN_PROB then
-            pair["Prob"] = MIN_PROB; clampedCount = clampedCount + 1
-        elseif pair["Prob"] > MAX_PROB then
-            pair["Prob"] = MAX_PROB; clampedCount = clampedCount + 1
-        end
-        clampTotal = clampTotal + pair["Prob"]
-    end
-    if clampedCount > 0 then
-        for _, pair in ipairs(pairs) do pair["Prob"] = pair["Prob"] / clampTotal end
-    end
+	-- 3. Clamp out-of-range values, then renormalize if anything was clamped
+	local clampTotal, clampedCount = 0, 0
+	for _, t in ipairs(MOVE_TYPES) do
+		if     weights[t] < MIN_PROB then weights[t] = MIN_PROB; clampedCount = clampedCount + 1
+		elseif weights[t] > MAX_PROB then weights[t] = MAX_PROB; clampedCount = clampedCount + 1
+		end
+		clampTotal = clampTotal + weights[t]
+	end
+	
+	if clampedCount > 0 then
+		for _, t in ipairs(MOVE_TYPES) do weights[t] = weights[t] / clampTotal end
+	end
 end
 
 function AgentMethods.EndGame(self, status)
@@ -306,7 +280,7 @@ function AgentMethods.EndGame(self, status)
         local discount = GAMMA ^ (n - i)
         local pairs    = KnowledgeBase.data[move.state]
         if pairs then
-            self:AdjustProb(pairs, move.idx, factor * discount)
+            self:AdjustProb(pairs, move.cat, factor * discount)
         end
     end
 
