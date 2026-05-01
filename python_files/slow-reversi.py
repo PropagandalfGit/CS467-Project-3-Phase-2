@@ -1,6 +1,5 @@
 #from agent import Agent
 from randomplayer import RandomPlayer
-from agent import Agent
 import random
 import sys
 
@@ -128,8 +127,8 @@ def getEndgameStatus( board ):
 gameboard = "--------------XO----OX--------------"
 gameover = False
 
-X = Agent('X')
-O = Agent('O')
+X = RandomPlayer('X')
+O = RandomPlayer('O')
 #O = Agent('O') # use this when agent is implemented
 
 
