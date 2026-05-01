@@ -164,7 +164,8 @@ function AgentMethods.GetMove(self, gameboard)
     end
 
     if #validRealIdcs == 0 then
-        return -1  -- no valid moves; caller should not have invoked GetMove
+        error("GetMove called with no valid moves on board: " .. table.concat(colourBoard))
+        --return -1  -- no valid moves; caller should not have invoked GetMove
     end
 
     -- 3. Canonicalize over D4
@@ -198,7 +199,11 @@ function AgentMethods.GetMove(self, gameboard)
     end
 
     if #validNow == 0 then
-        return -1  -- safety fallback
+        local realI  = validRealIdcs[math.random(#validRealIdcs)]
+        local canonI = transformIdx(appliedT, realI)
+        table.insert(self.history, { state = canonStr, idx = canonI })
+        return realI
+        --return -1  -- safety fallback
     end
 
     local canonIdx = nil

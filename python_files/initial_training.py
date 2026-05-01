@@ -233,15 +233,39 @@ for g in range(1, TOTAL_GAMES + 1):
    while( not gameover ):
       if countPossibleMoves( gameboard, first_piece ) > 0:
          play = -1
+         attempts = 0
          while not validMove( gameboard, play, first_piece ):
             play = first_agent.getMove( gameboard )
+            attempts += 1
+            if attempts > 200:
+                print(f"{first_piece} tried to find a move {attempts} times and filed")
+                # force a valid move directly
+                """
+                for i in range(36):
+                    if validMove(gameboard, i, first_piece):
+                        play = i
+                        break
+                break
+                """
          applyMove( play, first_piece )
 
       # player O
       if countPossibleMoves( gameboard, second_piece ) > 0:
          play = -1
+         attempts = 0
          while not validMove( gameboard, play, second_piece ):
             play = second_agent.getMove( gameboard )
+            attempts += 1
+            if attempts > 200:
+                print(f"{second_piece} tried to find a move {attempts} times and filed")
+                # force a valid move directly
+                """
+                for i in range(36):
+                    if validMove(gameboard, i, first_piece):
+                        play = i
+                        break
+                break
+                """
          applyMove( play, second_piece )
 
       # if game over
