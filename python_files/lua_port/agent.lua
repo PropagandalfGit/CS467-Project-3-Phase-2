@@ -11,7 +11,7 @@ local MIN_PROB = 0.001  -- never let a move reach 0, keep some exploration
 local MAX_PROB = 0.99  -- never let a move reach 1, keep some exploration
 local GAMMA = 0.9 -- scalar describing learning decay
 
-local EPSILON     = 0.25   -- start: 25% random exploration
+local EPSILON_START = 0.25 -- start: 25% random exploration
 local EPSILON_MIN = 0.05   -- floor: always keep 5% exploration
 -- to calculate the EPSILON_DECAY such that EPSILON hits the minimum by a specific number of games
 -- use this formula
@@ -135,6 +135,7 @@ function AgentMethods.new(xORo, filePath)
     KnowledgeBase.new(filePath)
     local player = BasePlayer.new(xORo)
     player.history = {}
+    player.epsilon = EPSILON_START
     return setmetatable(player, AgentMethods)
 end
 
@@ -201,16 +202,29 @@ function AgentMethods.GetMove(self, gameboard)
     end
 
     local canonIdx = nil
-    local rand = math.random() * totalProb
-    for _, pair in ipairs(validNow) do
-        if rand < pair["Prob"] then
-            canonIdx = pair["Idx"]
-            break
+    if math.random() < self.epsilon then
+        -- explore
+        local candidates = {}
+        for _, pair in ipairs(validNow) do
+            if pair.Prob > 0 then
+                table.insert(candidates, pair.Idx)
+            end
         end
-        rand = rand - pair["Prob"]
-    end
-    if not canonIdx then
-        canonIdx = validNow[#validNow]["Idx"]
+        canonIdx = candidates[math.random(#candidates)]
+    else
+        -- exploit
+        local bestProb = -math.huge
+        local bestIdcs = {}                                                                                                          
+        for _, pair in ipairs(validNow) do
+            if pair.Prob > bestProb then
+                bestProb = pair.Prob                                                                                       
+                bestIdcs = { pair.Idx }                                                                                         
+            elseif pair.Prob == bestProb then                                                                                        
+                table.insert(bestIdcs, pair.Idx)                                                                                   
+            end
+        end
+        
+        canonIdx = bestIdcs[math.random(#bestIdcs)] 
     end
 
     -- 7. Map chosen canonical index back to the real (colour-normalised) board.
@@ -218,7 +232,6 @@ function AgentMethods.GetMove(self, gameboard)
 
     -- 8. Store canonical state + canonical index for EndGame credit.
     table.insert(self.history, { state = canonStr, idx = canonIdx })
-
     return realIdx
 end
 
@@ -267,6 +280,7 @@ function AgentMethods.EndGame(self, status)
     end
 
     self.history = {}
+    self.epsilon = math.max(EPSILON_MIN, self.epsilon * EPSILON_DECAY)
 end
 
 function AgentMethods.StopPlaying(self)

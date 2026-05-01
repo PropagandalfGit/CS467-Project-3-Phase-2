@@ -1,5 +1,6 @@
 #from agent import Agent
 import time
+from randomplayer import RandomPlayer
 from agent import Agent
 import sys
 
@@ -136,7 +137,7 @@ gameover = False
 TOTAL_GAMES = 5000
 
 print("  Loading agents and knowledge base...")
-X = Agent('X')
+X = RandomPlayer('X')
 O = Agent('O')
 t = time.time()
 print("  Agents ready — KB loaded\n")

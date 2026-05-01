@@ -109,7 +109,7 @@ gameboard = BOARD_NORMAL
 gameover  = False
 
 t = time.time()
-X = Agent('X')
+X = RandomPlayer('X')
 O = Agent('O')
 print(f"TIME TAKEN TO CREATE KBASE WAS {time.time() - t}")
 t = time.time()
@@ -123,15 +123,11 @@ for g in range(50):
    # Even games: X moves first, normal opening.
    # Odd  games: O moves first, swapped opening — mirrors the game exactly.
    x_goes_first = (g % 2 == 0)
-   gameboard = BOARD_NORMAL if x_goes_first else BOARD_SWAPPED
+   gameboard = BOARD_NORMAL #if x_goes_first else BOARD_SWAPPED
    gameover  = False
 
-   if x_goes_first:
-      first_piece,  first_agent  = 'X', X
-      second_piece, second_agent = 'O', O
-   else:
-       first_piece,  first_agent  = 'O', O
-       second_piece, second_agent = 'X', X
+   first_piece,  first_agent  = 'X', X
+   second_piece, second_agent = 'O', O
 
    while( not gameover ):
       t_internal = time.time()
