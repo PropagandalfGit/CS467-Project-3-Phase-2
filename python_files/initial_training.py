@@ -216,50 +216,50 @@ print("-" * 46)
 # how many games do you want to play?
 for g in range(1, TOTAL_GAMES + 1):
    # reset global variables for new game
-   x_goes_first = (g % 2 == 0)
+   x_goes_first = (g % 3 == 0)
    gameboard = BOARD_NORMAL if x_goes_first else BOARD_SWAPPED
    gameover  = False
 
 
    if x_goes_first:
-       first_piece,  first_agent  = 'X', X
-       second_piece, second_agent = 'O', O
+        first_piece,  first_agent  = 'X', X
+        second_piece, second_agent = 'O', O
    else:
-       first_piece,  first_agent  = 'O', O
-       second_piece, second_agent = 'X', X
+        first_piece,  first_agent  = 'O', O
+        second_piece, second_agent = 'X', X
 
    # play game until done
    move = 1
    while( not gameover ):
-      if countPossibleMoves( gameboard, 'X' ) > 0:
+      if countPossibleMoves( gameboard, first_piece ) > 0:
          play = -1
-         while not validMove( gameboard, play, 'X' ):
-            play = X.getMove( gameboard )
-         applyMove( play, 'X' )
+         while not validMove( gameboard, play, first_piece ):
+            play = first_agent.getMove( gameboard )
+         applyMove( play, first_piece )
 
       # player O
-      if countPossibleMoves( gameboard, 'O' ) > 0:
+      if countPossibleMoves( gameboard, second_piece ) > 0:
          play = -1
-         while not validMove( gameboard, play, 'O' ):
-            play = O.getMove( gameboard )
-         applyMove( play, 'O' )
+         while not validMove( gameboard, play, second_piece ):
+            play = second_agent.getMove( gameboard )
+         applyMove( play, second_piece )
 
       # if game over
-      if countPossibleMoves( gameboard, 'X' ) + countPossibleMoves( gameboard, 'O' ) == 0:
+      if countPossibleMoves( gameboard, first_piece ) + countPossibleMoves( gameboard, second_piece ) == 0:
          status = getEndgameStatus( gameboard )
          if status > 0: # X wins
-            X.endGame(  1, gameboard )
-            O.endGame( -1, gameboard )
+            first_agent.endGame(  1, gameboard )
+            second_agent.endGame( -1, gameboard )
             numWinX = numWinX + 1
             #print( "X wins by " + str(status) + " pieces" )
          elif status < 0: # O wins
-            X.endGame( -1, gameboard )
-            O.endGame(  1, gameboard )
+            first_agent.endGame( -1, gameboard )
+            second_agent.endGame(  1, gameboard )
             numWinO = numWinO + 1
             #print( "O wins by " + str(-status) + " pieces" )
          else: # status == 0, tie game
-            X.endGame(  0, gameboard )
-            O.endGame(  0, gameboard )
+            first_agent.endGame(  0, gameboard )
+            second_agent.endGame(  0, gameboard )
             numTied = numTied + 1
             #print( "Tie game" )
          gameover = True
